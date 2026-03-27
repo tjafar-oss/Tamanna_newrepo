@@ -1,0 +1,161 @@
+---
+title: "Problem Set: Vectors, Strings, Factors, and Dates"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    code-overflow: wrap
+editor: visual
+---
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(nycflights13)
+library(lubridate)
+```
+
+------------------------------------------------------------------------
+
+## Question 1 — Exploring the Star Wars Universe
+
+The `dplyr::starwars` dataset (available as soon as you load `tidyverse`) contains physical and biographical information on characters from the Star Wars films. Start by running `View(starwars)` and ?starwars to get oriented.
+
+The code below stores the characters with blue eyes in the "blue_eyes" dataframe, and the characters with red eyes in the "red_eyes" dataframe. There is one character with both blue and red eyes. Use a logical vector approach again with str_detect to find out which one. Hint: one way to do it is with the logical & operator, which returns all rows for which multiple criteria are met
+
+```{r}
+# Characters with "blue" in eye_color
+blue_eyes <- starwars |>
+  filter(str_detect(eye_color, "blue"))
+blue_eyes
+
+# Characters with "brown" in eye_color
+red_eyes <- starwars |>
+  filter(str_detect(eye_color, "red"))
+red_eyes
+library(tidyverse)
+
+# characters with "blue" in eye_color
+blue_eyes <- starwars |>
+  filter(str_detect(eye_color, "blue"))
+
+# characters with "red" in eye_color
+red_eyes <- starwars |>
+  filter(str_detect(eye_color, "red"))
+
+# character(s) with both blue AND red in eye_color
+blue_and_red <- starwars |>
+  filter(str_detect(eye_color, "blue") & str_detect(eye_color, "red"))
+
+blue_and_red
+
+```
+
+## Question 2 — American Unemployment Over Time
+
+The `ggplot2::economics` dataset contains monthly U.S. macroeconomic indicators from 1967 to 2015. The `date` column is already a proper `Date` object.
+
+**(a)** The goal here is to see how the unemployment rate changes over time. Start by plotting the number of unemployed people over time:
+
+```{r}
+  ggplot(economics, aes(x = date, y = unemploy)) +
+  geom_line()
+```
+
+Now use lubridate to plot only the unemployment data from Jan 1st 2008 to Jan 1st 2009. Hint: use the lubridate function ymd to specify date windows, and use a similar logical criteria to in Q1, above
+
+```{r}
+# full-period unemployed time series
+ggplot(economics, aes(x = date, y = unemploy)) +
+  geom_line()
+
+# filter to 2008-01-01 through 2009-01-01
+econ_0809 <- economics |>
+  filter(date >= ymd("2008-01-01") & date <= ymd("2009-01-01"))
+
+ggplot(econ_0809, aes(x = date, y = unemploy)) +
+  geom_line()
+```
+
+What do you notice about the format of the date variable on the x axis of this plot vs the plot over the entire time window. What do you think is happening here?
+
+**Your answer:** On the full‑period plot, ggplot automatically uses coarser date breaks and labels by year (and maybe every few years) to keep the axis readable over 40+ years. Over the single year 2008–2009, the time span is much shorter, so ggplot switches to more frequent, finer‑grained date labels (e.g., by month or quarter). In other words, ggplot is automatically adjusting the scale and labeling granularity based on the range of dates
+
+Now use mutate to calculate a new variable - the monthly unemployment rate as `unemploy / pop * 100`. Make a plot over the whole time period as in part 1 of this question.
+
+```{r}
+library(ggplot2)
+ggplot(data = economics, mapping = aes(x = date, y = unemploy)) +
+  geom_line()
+
+# econ_rate <- economics |>
+  mutate(unemploy_rate = unemploy / pop * 100)
+
+ggplot(econ_rate, aes(x = date, y = unemploy_rate)) +
+  geom_line()
+
+```
+
+Do you draw different conclusions now about how unemployment has changed over these 40 years? what explains the difference?
+
+**Your answer:** The raw `unemploy` count plot shows a dramatic upward trend, suggesting unemployment has steadily worsened over the 40 years, with the absolute number of unemployed people growing massively (peaking around 15 million in the 2010s).
+
+## Question 3 — Flight Status and the Value of Factors
+
+Run the code below to create a `status` variable that categorises each flight by how early or late it arrived.
+
+```{r}
+flight_status <- flights |>
+  mutate(
+    status = case_when(
+      is.na(arr_delay)      ~ "cancelled",
+      arr_delay < -30       ~ "very early",
+      arr_delay < -15       ~ "early",
+      abs(arr_delay) <= 15  ~ "on time",
+      arr_delay < 60        ~ "late",
+      arr_delay < Inf       ~ "very late",
+    ),
+    .keep = "used"
+  )
+```
+
+**(a)** Without converting `status` to a factor, run the followong code to create a bar chart showing the count of flights in each category. What do you notice about the ordering of the bars? Is it meaningful?
+
+```{r}
+ggplot(flight_status, aes(x = status)) +
+  geom_bar()
+```
+
+**your answer:** When `status` is a character vector, ggplot treats it as a discrete variable and orders the bars alphabetically by the label, not by any meaningful severity scale. So you’ll see something like `"cancelled"`, `"early"`, `"late"`, `"on time"`, `"very early"`, `"very late"` in alphabetical order, which doesn’t correspond to how we naturally think about flight status
+
+**(b)** Convert `status` to a factor with levels in a natural severity order: `"very early"`, `"early"`, `"on time"`, `"late"`, `"very late"`, `"cancelled"`. Save it back into `flight_status` and recreate the bar chart. How does the chart change?
+
+```{r}
+# library(forcats)
+
+flight_status <- flights |>
+  mutate(
+    status = case_when(
+      is.na(arr_delay) ~ "cancelled",
+      arr_delay < -30 ~ "very early",
+      arr_delay < -15 ~ "early",
+      abs(arr_delay) <= 15 ~ "on time",
+      arr_delay < 60 ~ "late",
+      arr_delay < Inf ~ "very late",
+    ),
+    status = factor(
+      status,
+      levels = c("very early", "early", "on time", "late", "very late", "cancelled")
+    ),
+    .keep = "used"
+  )
+
+ggplot(flight_status, aes(x = status)) +
+  geom_bar()
+
+```
+
+**your answer:** Now the bars appear in the severity order you specified, progressing logically from very early through very late to cancelled. This makes the plot easier to interpret because the x‑axis runs along a meaningful scale of “how bad” the outcome is, rather than an arbitrary alphabetical order.
